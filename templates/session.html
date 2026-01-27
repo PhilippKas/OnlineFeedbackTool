@@ -54,7 +54,7 @@
         // Track voted items to show visual feedback
         let votedItems = JSON.parse(localStorage.getItem('voted_' + SESSION_CODE) || '[]');
 
-        const socket = io({ path: '/feedback/socket.io' });
+        const socket = io();
         const feedbackList = document.getElementById('feedback-list');
 
         // Join the session room
