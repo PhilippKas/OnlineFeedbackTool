@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Session - Workshop Feedback</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Workshop Feedback</h1>
+            <p class="subtitle">Join a session to share your thoughts</p>
+        </header>
+
+        <main>
+            <div class="card">
+                <h2>Enter Session Code</h2>
+                {% if error %}
+                <div class="error-message">{{ error }}</div>
+                {% endif %}
+                <form id="join-form">
+                    <input type="text" id="code-input" placeholder="Enter 8-digit code" maxlength="8" pattern="[0-9]{8}" required autofocus />
+                    <button type="submit" class="btn btn-primary">Join Session</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <p style="text-align: center;">
+                    <a href="/">Host a new session instead</a>
+                </p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.getElementById('join-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const code = document.getElementById('code-input').value;
+            window.location.href = '/join/' + code;
+        });
+    </script>
+</body>
+</html>

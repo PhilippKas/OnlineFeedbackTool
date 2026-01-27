@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workshop Feedback - Create Session</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Workshop Feedback Tool</h1>
+            <p class="subtitle">Collect anonymous feedback from your audience</p>
+        </header>
+
+        <main>
+            <div id="create-section" class="card">
+                <h2>Start a New Session</h2>
+                <p>Create a session and share the code or QR with your participants.</p>
+                <button id="create-btn" class="btn btn-primary">Create Session</button>
+            </div>
+
+            <div id="session-info" class="card" style="display: none;">
+                <h2>Session Created!</h2>
+                
+                <div class="code-display">
+                    <span class="label">Session Code</span>
+                    <span id="session-code" class="code"></span>
+                </div>
+
+                <div class="qr-section">
+                    <p>Scan to join:</p>
+                    <img id="qr-code" alt="QR Code" />
+                </div>
+
+                <div class="url-section">
+                    <span class="label">Or share this link:</span>
+                    <input type="text" id="join-url" readonly />
+                    <button id="copy-btn" class="btn btn-small">Copy</button>
+                </div>
+
+                <a id="host-link" href="#" class="btn btn-primary">Open Host View</a>
+            </div>
+
+            <div class="divider">
+                <span>or</span>
+            </div>
+
+            <div class="card">
+                <h2>Join Existing Session</h2>
+                <form id="join-form" action="/join" method="GET">
+                    <input type="text" name="code" placeholder="Enter 8-digit code" maxlength="8" pattern="[0-9]{8}" required />
+                    <button type="submit" class="btn">Join</button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.getElementById('create-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('create-btn');
+            btn.disabled = true;
+            btn.textContent = 'Creating...';
+
+            try {
+                const response = await fetch('/api/create-session', { method: 'POST' });
+                const data = await response.json();
+
+                document.getElementById('session-code').textContent = data.code;
+                document.getElementById('qr-code').src = 'data:image/png;base64,' + data.qr_code;
+                document.getElementById('join-url').value = data.join_url;
+                document.getElementById('host-link').href = data.host_url;
+
+                document.getElementById('create-section').style.display = 'none';
+                document.getElementById('session-info').style.display = 'block';
+            } catch (error) {
+                alert('Failed to create session');
+                btn.disabled = false;
+                btn.textContent = 'Create Session';
+            }
+        });
+
+        document.getElementById('copy-btn').addEventListener('click', () => {
+            const urlInput = document.getElementById('join-url');
+            urlInput.select();
+            document.execCommand('copy');
+            document.getElementById('copy-btn').textContent = 'Copied!';
+            setTimeout(() => {
+                document.getElementById('copy-btn').textContent = 'Copy';
+            }, 2000);
+        });
+
+        document.getElementById('join-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const code = e.target.code.value;
+            window.location.href = '/join/' + code;
+        });
+    </script>
+</body>
+</html>

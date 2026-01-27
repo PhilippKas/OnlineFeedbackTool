@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session {{ code }} - Workshop Feedback</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-row">
+                <div>
+                    <h1>Feedback Session</h1>
+                    <p class="session-code">Code: <strong>{{ code }}</strong></p>
+                </div>
+                {% if is_host %}
+                <div class="host-controls">
+                    <button id="export-btn" class="btn">Export Markdown</button>
+                    <button id="close-btn" class="btn btn-danger">End Session</button>
+                </div>
+                {% endif %}
+            </div>
+        </header>
+
+        <main>
+            <!-- New Feedback Form -->
+            <div class="card feedback-form">
+                <form id="feedback-form">
+                    <textarea id="feedback-input" placeholder="Share your feedback or idea..." rows="3" required></textarea>
+                    <button type="submit" class="btn btn-primary">Post Feedback</button>
+                </form>
+            </div>
+
+            <!-- Feedback List -->
+            <div id="feedback-list" class="feedback-list">
+                <p class="empty-state">No feedback yet. Be the first to share!</p>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        const SESSION_CODE = "{{ code }}";
+        const IS_HOST = {{ 'true' if is_host else 'false' }};
+        
+        // Generate/retrieve anonymous user ID
+        let userId = localStorage.getItem('feedback_user_id');
+        if (!userId) {
+            userId = 'anon_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('feedback_user_id', userId);
+        }
+
+        // Track voted items to show visual feedback
+        let votedItems = JSON.parse(localStorage.getItem('voted_' + SESSION_CODE) || '[]');
+
+        const socket = io();
+        const feedbackList = document.getElementById('feedback-list');
+
+        // Join the session room
+        socket.emit('join', { code: SESSION_CODE });
+
+        // Socket event handlers
+        socket.on('joined', (data) => {
+            renderFeedbacks(data.feedbacks);
+        });
+
+        socket.on('feedback_added', (feedback) => {
+            addFeedbackToList(feedback);
+        });
+
+        socket.on('comment_added', (data) => {
+            addCommentToFeedback(data.feedback_id, data.comment);
+        });
+
+        socket.on('vote_updated', (data) => {
+            updateVoteCount(data.item_id, data.votes, data.is_comment);
+        });
+
+        socket.on('error', (data) => {
+            alert(data.message);
+            window.location.href = '/';
+        });
+
+        // Render all feedbacks
+        function renderFeedbacks(feedbacks) {
+            if (feedbacks.length === 0) {
+                feedbackList.innerHTML = '<p class="empty-state">No feedback yet. Be the first to share!</p>';
+                return;
+            }
+            feedbackList.innerHTML = '';
+            // Sort by votes descending
+            feedbacks.sort((a, b) => b.votes - a.votes);
+            feedbacks.forEach(fb => addFeedbackToList(fb, false));
+        }
+
+        // Add a single feedback to the list
+        function addFeedbackToList(feedback, prepend = true) {
+            const emptyState = feedbackList.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+
+            const hasVoted = votedItems.includes(feedback.id);
+            const el = document.createElement('div');
+            el.className = 'feedback-item';
+            el.id = 'feedback-' + feedback.id;
+            el.innerHTML = `
+                <div class="vote-section">
+                    <button class="vote-btn ${hasVoted ? 'voted' : ''}" data-id="${feedback.id}" data-type="feedback">
+                        <span class="arrow">▲</span>
+                    </button>
+                    <span class="vote-count" id="votes-${feedback.id}">${feedback.votes}</span>
+                </div>
+                <div class="content-section">
+                    <p class="feedback-text">${escapeHtml(feedback.text)}</p>
+                    <div class="feedback-meta">
+                        <button class="reply-btn" data-id="${feedback.id}">Reply</button>
+                    </div>
+                    <div class="comments" id="comments-${feedback.id}">
+                        ${feedback.comments.map(c => renderComment(c, feedback.id)).join('')}
+                    </div>
+                    <div class="reply-form" id="reply-form-${feedback.id}" style="display: none;">
+                        <textarea placeholder="Write a reply..." rows="2"></textarea>
+                        <button class="btn btn-small submit-reply" data-id="${feedback.id}">Reply</button>
+                    </div>
+                </div>
+            `;
+
+            if (prepend) {
+                feedbackList.prepend(el);
+            } else {
+                feedbackList.appendChild(el);
+            }
+        }
+
+        // Render a comment
+        function renderComment(comment, feedbackId) {
+            const hasVoted = votedItems.includes(comment.id);
+            return `
+                <div class="comment-item" id="comment-${comment.id}">
+                    <div class="vote-section vote-section-small">
+                        <button class="vote-btn vote-btn-small ${hasVoted ? 'voted' : ''}" data-id="${comment.id}" data-type="comment" data-feedback-id="${feedbackId}">
+                            <span class="arrow">▲</span>
+                        </button>
+                        <span class="vote-count" id="votes-${comment.id}">${comment.votes}</span>
+                    </div>
+                    <p class="comment-text">${escapeHtml(comment.text)}</p>
+                </div>
+            `;
+        }
+
+        // Add comment to feedback
+        function addCommentToFeedback(feedbackId, comment) {
+            const commentsEl = document.getElementById('comments-' + feedbackId);
+            if (commentsEl) {
+                commentsEl.insertAdjacentHTML('beforeend', renderComment(comment, feedbackId));
+            }
+        }
+
+        // Update vote count
+        function updateVoteCount(itemId, votes, isComment) {
+            const el = document.getElementById('votes-' + itemId);
+            if (el) el.textContent = votes;
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Event delegation for votes and replies
+        feedbackList.addEventListener('click', (e) => {
+            const voteBtn = e.target.closest('.vote-btn');
+            if (voteBtn && !voteBtn.classList.contains('voted')) {
+                const itemId = voteBtn.dataset.id;
+                const isComment = voteBtn.dataset.type === 'comment';
+                const feedbackId = voteBtn.dataset.feedbackId;
+
+                socket.emit('vote', {
+                    code: SESSION_CODE,
+                    item_id: itemId,
+                    user_id: userId,
+                    is_comment: isComment,
+                    feedback_id: feedbackId
+                });
+
+                voteBtn.classList.add('voted');
+                votedItems.push(itemId);
+                localStorage.setItem('voted_' + SESSION_CODE, JSON.stringify(votedItems));
+            }
+
+            const replyBtn = e.target.closest('.reply-btn');
+            if (replyBtn) {
+                const feedbackId = replyBtn.dataset.id;
+                const form = document.getElementById('reply-form-' + feedbackId);
+                form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            }
+
+            const submitReply = e.target.closest('.submit-reply');
+            if (submitReply) {
+                const feedbackId = submitReply.dataset.id;
+                const form = document.getElementById('reply-form-' + feedbackId);
+                const textarea = form.querySelector('textarea');
+                const text = textarea.value.trim();
+
+                if (text) {
+                    socket.emit('new_comment', {
+                        code: SESSION_CODE,
+                        feedback_id: feedbackId,
+                        text: text
+                    });
+                    textarea.value = '';
+                    form.style.display = 'none';
+                }
+            }
+        });
+
+        // Submit new feedback
+        document.getElementById('feedback-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const input = document.getElementById('feedback-input');
+            const text = input.value.trim();
+
+            if (text) {
+                socket.emit('new_feedback', {
+                    code: SESSION_CODE,
+                    text: text,
+                    user_id: userId
+                });
+                input.value = '';
+            }
+        });
+
+        // Host controls
+        if (IS_HOST) {
+            document.getElementById('export-btn').addEventListener('click', async () => {
+                const response = await fetch('/api/session/' + SESSION_CODE + '/export');
+                const data = await response.json();
+                
+                const blob = new Blob([data.markdown], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = data.filename;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+
+            document.getElementById('close-btn').addEventListener('click', async () => {
+                if (confirm('End this session? This will export the feedback and delete the session.')) {
+                    // Export first
+                    const response = await fetch('/api/session/' + SESSION_CODE + '/export');
+                    const data = await response.json();
+                    
+                    const blob = new Blob([data.markdown], { type: 'text/markdown' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = data.filename;
+                    a.click();
+                    URL.revokeObjectURL(url);
+
+                    // Then close
+                    await fetch('/api/session/' + SESSION_CODE + '/close', { method: 'POST' });
+                    window.location.href = '/';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

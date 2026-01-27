@@ -1,0 +1,6 @@
+flask
+flask-socketio
+qrcode[pil]
+gunicorn
+gevent
+gevent-websocket

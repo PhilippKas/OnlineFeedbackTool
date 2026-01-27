@@ -1,0 +1,401 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background-color: #f4f4f5;
+    color: #1a1a1b;
+    line-height: 1.5;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Header */
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+header h1 {
+    font-size: 2rem;
+    color: #1a1a1b;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    color: #7c7c7c;
+    font-size: 1rem;
+}
+
+.header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: left;
+}
+
+.session-code {
+    color: #7c7c7c;
+    font-size: 0.9rem;
+}
+
+.host-controls {
+    display: flex;
+    gap: 10px;
+}
+
+/* Cards */
+.card {
+    background: white;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card h2 {
+    font-size: 1.25rem;
+    margin-bottom: 12px;
+}
+
+.card p {
+    color: #575757;
+    margin-bottom: 16px;
+}
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+    background-color: #e5e5e5;
+    color: #1a1a1b;
+    text-decoration: none;
+    transition: background-color 0.2s;
+}
+
+.btn:hover {
+    background-color: #d5d5d5;
+}
+
+.btn-primary {
+    background-color: #0079d3;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #006cbd;
+}
+
+.btn-danger {
+    background-color: #ff4500;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #e03d00;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 0.875rem;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Session Info */
+.code-display {
+    text-align: center;
+    margin: 20px 0;
+}
+
+.code-display .label {
+    display: block;
+    color: #7c7c7c;
+    font-size: 0.875rem;
+    margin-bottom: 8px;
+}
+
+.code-display .code {
+    font-size: 3rem;
+    font-weight: bold;
+    letter-spacing: 8px;
+    color: #0079d3;
+}
+
+.qr-section {
+    text-align: center;
+    margin: 20px 0;
+}
+
+.qr-section img {
+    max-width: 200px;
+    border-radius: 8px;
+}
+
+.url-section {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin: 20px 0;
+}
+
+.url-section .label {
+    color: #7c7c7c;
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+.url-section input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+/* Divider */
+.divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 24px 0;
+    color: #7c7c7c;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #ddd;
+}
+
+.divider span {
+    padding: 0 16px;
+}
+
+/* Forms */
+input[type="text"],
+textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-family: inherit;
+    resize: vertical;
+}
+
+input[type="text"]:focus,
+textarea:focus {
+    outline: none;
+    border-color: #0079d3;
+}
+
+#join-form {
+    display: flex;
+    gap: 10px;
+}
+
+#join-form input {
+    flex: 1;
+    text-align: center;
+    font-size: 1.25rem;
+    letter-spacing: 4px;
+}
+
+/* Feedback Form */
+.feedback-form form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.feedback-form textarea {
+    min-height: 80px;
+}
+
+/* Feedback List */
+.feedback-list {
+    margin-top: 16px;
+}
+
+.empty-state {
+    text-align: center;
+    color: #7c7c7c;
+    padding: 40px 20px;
+    background: white;
+    border-radius: 8px;
+}
+
+/* Feedback Item (Reddit-style) */
+.feedback-item {
+    display: flex;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.vote-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 8px;
+    background: #f8f8f8;
+    min-width: 50px;
+}
+
+.vote-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.vote-btn:hover {
+    background-color: #e5e5e5;
+}
+
+.vote-btn .arrow {
+    color: #878a8c;
+    font-size: 1.25rem;
+}
+
+.vote-btn.voted .arrow {
+    color: #ff4500;
+}
+
+.vote-count {
+    font-weight: bold;
+    color: #1a1a1b;
+    font-size: 0.875rem;
+}
+
+.content-section {
+    flex: 1;
+    padding: 12px 16px;
+}
+
+.feedback-text {
+    color: #1a1a1b;
+    margin-bottom: 8px;
+    word-wrap: break-word;
+}
+
+.feedback-meta {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+}
+
+.reply-btn {
+    background: none;
+    border: none;
+    color: #878a8c;
+    font-size: 0.75rem;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.reply-btn:hover {
+    background-color: #e5e5e5;
+}
+
+/* Comments */
+.comments {
+    border-left: 2px solid #e5e5e5;
+    margin-left: 8px;
+    padding-left: 16px;
+}
+
+.comment-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 0;
+}
+
+.vote-section-small {
+    padding: 0;
+    background: none;
+    min-width: 30px;
+}
+
+.vote-btn-small {
+    padding: 2px;
+}
+
+.vote-btn-small .arrow {
+    font-size: 0.875rem;
+}
+
+.comment-text {
+    color: #1a1a1b;
+    font-size: 0.875rem;
+}
+
+/* Reply Form */
+.reply-form {
+    margin-top: 12px;
+}
+
+.reply-form textarea {
+    min-height: 60px;
+    margin-bottom: 8px;
+}
+
+/* Error Message */
+.error-message {
+    background-color: #fff2f0;
+    border: 1px solid #ffccc7;
+    color: #cf1322;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .container {
+        padding: 12px;
+    }
+
+    .header-row {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+    }
+
+    .code-display .code {
+        font-size: 2rem;
+        letter-spacing: 4px;
+    }
+
+    .url-section {
+        flex-direction: column;
+    }
+
+    #join-form {
+        flex-direction: column;
+    }
+}
