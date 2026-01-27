@@ -8,6 +8,8 @@ from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, join_room, emit
 import qrcode
 
+BASE_URL = "https://philippsseite.de"
+
 app = Flask(__name__)
 app.config['APPLICATION_ROOT'] = '/feedback'
 app.config['SECRET_KEY'] = 'workshop-feedback-secret'
@@ -90,7 +92,7 @@ def create_session():
     }
     
     local_ip = get_local_ip()
-    join_url = f"http://{local_ip}:5000/join/{code}"
+    join_url = f"{BASE_URL}:5000/join/{code}"
     qr_base64 = generate_qr_code(join_url)
     
     return jsonify({
