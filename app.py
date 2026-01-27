@@ -9,6 +9,7 @@ from flask_socketio import SocketIO, join_room, emit
 import qrcode
 
 app = Flask(__name__)
+app.config['APPLICATION_ROOT'] = '/feedback'
 app.config['SECRET_KEY'] = 'workshop-feedback-secret'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
