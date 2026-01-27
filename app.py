@@ -92,7 +92,7 @@ def create_session():
     }
     
     local_ip = get_local_ip()
-    join_url = f"{BASE_URL}:5000/join/{code}"
+    join_url = f"{BASE_URL}/join/{code}"
     qr_base64 = generate_qr_code(join_url)
     
     return jsonify({
