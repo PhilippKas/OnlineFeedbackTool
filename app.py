@@ -88,7 +88,8 @@ def create_session():
     
     sessions[code] = {
         'created_at': datetime.now().isoformat(),
-        'feedbacks': []
+        'feedbacks': [],
+        'polls': []
     }
     
     local_ip = get_local_ip()
@@ -133,7 +134,7 @@ def export_session(code):
         f"## Feedback ({len(sorted_feedbacks)} items)",
         f""
     ]
-    
+
     for i, fb in enumerate(sorted_feedbacks, 1):
         md_lines.append(f"### {i}. {fb['text']}")
         md_lines.append(f"↑{fb['votes']}")
@@ -144,6 +145,19 @@ def export_session(code):
             for comment in fb['comments']:
                 md_lines.append(f"- {comment['text']} (↑{comment['votes']})")
             md_lines.append(f"")
+
+    polls = session.get('polls', [])
+    if polls:
+        md_lines.append(f"## Polls ({len(polls)} items)")
+        md_lines.append("")
+        for poll in polls:
+            total = sum(poll['votes'].values())
+            md_lines.append(f"### {poll['question']}")
+            for i, opt in enumerate(poll['options']):
+                count = poll['votes'].get(str(i), 0)
+                pct = (count / total * 100) if total > 0 else 0
+                md_lines.append(f"- {opt}: {count} ({pct:.0f}%)")
+            md_lines.append("")
     
     return jsonify({
         'markdown': '\n'.join(md_lines),
@@ -166,7 +180,11 @@ def on_join(data):
     code = data['code']
     if code in sessions:
         join_room(code)
-        emit('joined', {'code': code, 'feedbacks': sessions[code]['feedbacks']})
+        emit('joined', {
+            'code': code,
+            'feedbacks': sessions[code]['feedbacks'],
+            'polls': sessions[code].get('polls', [])
+        })
     else:
         emit('error', {'message': 'Session not found'})
 
@@ -215,6 +233,57 @@ def on_new_comment(data):
             }
             fb['comments'].append(comment)
             emit('comment_added', {'feedback_id': feedback_id, 'comment': comment}, room=code)
+            break
+
+
+@socketio.on('create_poll')
+def on_create_poll(data):
+    """Host creates a new poll."""
+    code = data['code']
+    question = data.get('question', '').strip()
+    options = [o.strip() for o in data.get('options', []) if o.strip()]
+    
+    if not question or len(options) < 2 or code not in sessions:
+        return
+    
+    poll = {
+        'id': str(uuid.uuid4()),
+        'question': question,
+        'options': options,
+        'votes': {str(i): 0 for i in range(len(options))},
+        'voters': {}  # user_id -> option_index (single choice)
+    }
+    
+    if 'polls' not in sessions[code]:
+        sessions[code]['polls'] = []
+    sessions[code]['polls'].append(poll)
+    emit('poll_created', poll, room=code)
+
+
+@socketio.on('poll_vote')
+def on_poll_vote(data):
+    """User votes on a poll option (single choice)."""
+    code = data['code']
+    poll_id = data['poll_id']
+    option_index = data.get('option_index', 0)
+    user_id = data.get('user_id', 'anonymous')
+    
+    if code not in sessions:
+        return
+    
+    for poll in sessions[code].get('polls', []):
+        if poll['id'] == poll_id:
+            prev_vote = poll['voters'].get(user_id)
+            if prev_vote is not None:
+                poll['votes'][str(prev_vote)] -= 1
+                del poll['voters'][user_id]
+            if prev_vote != option_index:
+                poll['votes'][str(option_index)] = poll['votes'].get(str(option_index), 0) + 1
+                poll['voters'][user_id] = option_index
+            emit('poll_updated', {
+                'poll_id': poll_id,
+                'votes': dict(poll['votes'])
+            }, room=code)
             break
 
 

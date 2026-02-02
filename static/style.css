@@ -516,6 +516,130 @@ textarea:focus {
     font-size: 1rem;
 }
 
+/* Modal */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 480px;
+    width: 90%;
+    border: 1px solid var(--border-color);
+}
+
+.modal-content h2 {
+    margin-bottom: 16px;
+}
+
+.modal-content label {
+    display: block;
+    margin: 12px 0 4px;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.modal-content input {
+    margin-bottom: 8px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+#poll-options .poll-option {
+    margin-bottom: 8px;
+}
+
+/* Polls */
+.polls-section {
+    margin-bottom: 24px;
+}
+
+.poll-card {
+    margin-bottom: 16px;
+}
+
+.poll-question {
+    font-size: 1.125rem;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+}
+
+.poll-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.poll-option-row {
+    width: 100%;
+}
+
+.poll-option-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.poll-option-btn:hover {
+    background: var(--border-color);
+}
+
+.poll-option-btn.selected {
+    border-color: var(--accent);
+    background: rgba(0, 121, 211, 0.1);
+}
+
+.poll-option-label {
+    flex: 0 0 120px;
+    min-width: 0;
+}
+
+.poll-bar-container {
+    flex: 1;
+    height: 8px;
+    background: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.poll-bar {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.poll-count {
+    flex: 0 0 32px;
+    text-align: right;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
     .container {

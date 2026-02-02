@@ -31,6 +31,14 @@
         </header>
 
         <main>
+            <!-- Polls Section -->
+            <div id="polls-section" class="polls-section">
+                {% if is_host %}
+                <button id="create-poll-btn" class="btn btn-primary" style="margin-bottom: 16px;">Create Poll</button>
+                {% endif %}
+                <div id="polls-list"></div>
+            </div>
+
             <!-- New Feedback Form -->
             <div class="card feedback-form">
                 <form id="feedback-form">
@@ -44,6 +52,27 @@
                 <p class="empty-state">No feedback yet. Be the first to share!</p>
             </div>
         </main>
+    </div>
+
+    <!-- Create Poll Modal -->
+    <div id="poll-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Create Poll</h2>
+            <form id="poll-form">
+                <label>Question</label>
+                <input type="text" id="poll-question" placeholder="Enter your question..." required />
+                <label>Options</label>
+                <div id="poll-options">
+                    <input type="text" class="poll-option" placeholder="Option 1" required />
+                    <input type="text" class="poll-option" placeholder="Option 2" required />
+                </div>
+                <button type="button" id="add-option-btn" class="btn btn-small">+ Add Option</button>
+                <div class="modal-actions">
+                    <button type="button" id="cancel-poll-btn" class="btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Poll</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
@@ -60,6 +89,8 @@
 
         // Track voted items to show visual feedback
         let votedItems = JSON.parse(localStorage.getItem('voted_' + SESSION_CODE) || '[]');
+        // Track poll votes: { pollId: optionIndex }
+        let pollVotes = JSON.parse(localStorage.getItem('poll_votes_' + SESSION_CODE) || '{}');
 
         const socket = io();
         const feedbackList = document.getElementById('feedback-list');
@@ -69,7 +100,8 @@
 
         // Socket event handlers
         socket.on('joined', (data) => {
-            renderFeedbacks(data.feedbacks);
+            renderFeedbacks(data.feedbacks || []);
+            renderPolls(data.polls || []);
         });
 
         socket.on('feedback_added', (feedback) => {
@@ -87,6 +119,14 @@
         socket.on('error', (data) => {
             alert(data.message);
             window.location.href = '/';
+        });
+
+        socket.on('poll_created', (poll) => {
+            renderPoll(poll);
+        });
+
+        socket.on('poll_updated', (data) => {
+            updatePollResults(data.poll_id, data.votes);
         });
 
         // Render all feedbacks
@@ -209,6 +249,57 @@
             if (el) el.textContent = votes;
         }
 
+        // Poll rendering
+        function renderPolls(polls) {
+            const container = document.getElementById('polls-list');
+            container.innerHTML = '';
+            polls.forEach(p => renderPoll(p));
+        }
+
+        function renderPoll(poll) {
+            const container = document.getElementById('polls-list');
+            const total = Object.values(poll.votes || {}).reduce((a, b) => a + b, 0);
+            const myVote = pollVotes[poll.id];
+            const el = document.createElement('div');
+            el.className = 'card poll-card';
+            el.id = 'poll-' + poll.id;
+            el.innerHTML = `
+                <h3 class="poll-question">${escapeHtml(poll.question)}</h3>
+                <div class="poll-options">
+                    ${(poll.options || []).map((opt, i) => {
+                        const count = (poll.votes || {})[String(i)] || 0;
+                        const pct = total > 0 ? (count / total * 100) : 0;
+                        const isSelected = myVote === i;
+                        return `
+                            <div class="poll-option-row">
+                                <button class="poll-option-btn ${isSelected ? 'selected' : ''}" data-poll-id="${poll.id}" data-option-index="${i}">
+                                    <span class="poll-option-label">${escapeHtml(opt)}</span>
+                                    <span class="poll-bar-container">
+                                        <span class="poll-bar" style="width: ${pct}%"></span>
+                                    </span>
+                                    <span class="poll-count">${count}</span>
+                                </button>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            container.appendChild(el);
+        }
+
+        function updatePollResults(pollId, votes) {
+            const el = document.getElementById('poll-' + pollId);
+            if (!el) return;
+            const total = Object.values(votes).reduce((a, b) => a + b, 0);
+            el.querySelectorAll('.poll-option-btn').forEach((btn, i) => {
+                const count = votes[String(i)] || 0;
+                const pct = total > 0 ? (count / total * 100) : 0;
+                btn.querySelector('.poll-bar').style.width = pct + '%';
+                btn.querySelector('.poll-count').textContent = count;
+                btn.classList.toggle('selected', pollVotes[pollId] === i);
+            });
+        }
+
         // Escape HTML
         function escapeHtml(text) {
             const div = document.createElement('div');
@@ -269,6 +360,70 @@
                 }
             }
         });
+
+        // Poll voting (single choice: click to vote, click same to remove)
+        document.getElementById('polls-section').addEventListener('click', (e) => {
+            const pollBtn = e.target.closest('.poll-option-btn');
+            if (pollBtn) {
+                const pollId = pollBtn.dataset.pollId;
+                const optionIndex = parseInt(pollBtn.dataset.optionIndex, 10);
+                const prevVote = pollVotes[pollId];
+                const isRemoving = prevVote === optionIndex;
+                if (isRemoving) {
+                    delete pollVotes[pollId];
+                } else {
+                    pollVotes[pollId] = optionIndex;
+                }
+                localStorage.setItem('poll_votes_' + SESSION_CODE, JSON.stringify(pollVotes));
+                socket.emit('poll_vote', {
+                    code: SESSION_CODE,
+                    poll_id: pollId,
+                    option_index: optionIndex,
+                    user_id: userId
+                });
+                pollBtn.closest('.poll-options').querySelectorAll('.poll-option-btn').forEach(b => b.classList.remove('selected'));
+                if (!isRemoving) pollBtn.classList.add('selected');
+            }
+        });
+
+        // Poll creation (host only)
+        if (IS_HOST) {
+            document.getElementById('create-poll-btn').addEventListener('click', () => {
+                document.getElementById('poll-modal').style.display = 'flex';
+            });
+            document.getElementById('cancel-poll-btn').addEventListener('click', () => {
+                document.getElementById('poll-modal').style.display = 'none';
+            });
+            document.getElementById('add-option-btn').addEventListener('click', () => {
+                const opts = document.getElementById('poll-options');
+                const n = opts.querySelectorAll('.poll-option').length + 1;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'poll-option';
+                input.placeholder = `Option ${n}`;
+                opts.appendChild(input);
+            });
+            document.getElementById('poll-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const question = document.getElementById('poll-question').value.trim();
+                const options = Array.from(document.querySelectorAll('.poll-option'))
+                    .map(o => o.value.trim())
+                    .filter(o => o);
+                if (question && options.length >= 2) {
+                    socket.emit('create_poll', {
+                        code: SESSION_CODE,
+                        question: question,
+                        options: options
+                    });
+                    document.getElementById('poll-modal').style.display = 'none';
+                    document.getElementById('poll-form').reset();
+                    document.getElementById('poll-options').innerHTML = `
+                        <input type="text" class="poll-option" placeholder="Option 1" required />
+                        <input type="text" class="poll-option" placeholder="Option 2" required />
+                    `;
+                }
+            });
+        }
 
         // Submit new feedback
         document.getElementById('feedback-form').addEventListener('submit', (e) => {
