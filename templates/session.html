@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,9 +10,16 @@
     <div class="container">
         <header>
             <div class="header-row">
-                <div>
-                    <h1>Feedback Session</h1>
-                    <p class="session-code">Code: <strong>{{ code }}</strong></p>
+                <div class="header-left">
+                    <div>
+                        <h1>Feedback Session</h1>
+                        <p class="session-code">Code: <strong>{{ code }}</strong></p>
+                    </div>
+                    <button id="theme-toggle" class="theme-toggle" title="Toggle light/dark mode">
+                        <svg id="theme-icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                        <svg id="theme-icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                        <span id="theme-label">Dark</span>
+                    </button>
                 </div>
                 {% if is_host %}
                 <div class="host-controls">
@@ -94,33 +101,55 @@
             feedbacks.forEach(fb => addFeedbackToList(fb, false));
         }
 
+        // Relative time (e.g. "vor 5 Min.")
+        function relativeTime(isoStr) {
+            const date = new Date(isoStr);
+            const now = new Date();
+            const sec = Math.floor((now - date) / 1000);
+            if (sec < 60) return 'gerade eben';
+            const min = Math.floor(sec / 60);
+            if (min < 60) return `vor ${min} Min.`;
+            const h = Math.floor(min / 60);
+            if (h < 24) return `vor ${h} Std.`;
+            const d = Math.floor(h / 24);
+            return `vor ${d} Tag${d > 1 ? 'en' : ''}`;
+        }
+
         // Add a single feedback to the list
         function addFeedbackToList(feedback, prepend = true) {
             const emptyState = feedbackList.querySelector('.empty-state');
             if (emptyState) emptyState.remove();
 
             const hasVoted = votedItems.includes(feedback.id);
+            const hasReplies = feedback.comments && feedback.comments.length > 0;
             const el = document.createElement('div');
-            el.className = 'feedback-item';
-            el.id = 'feedback-' + feedback.id;
+            el.className = 'feedback-thread';
+            el.id = 'thread-' + feedback.id;
             el.innerHTML = `
-                <div class="vote-section">
-                    <button class="vote-btn ${hasVoted ? 'voted' : ''}" data-id="${feedback.id}" data-type="feedback">
-                        <span class="arrow">▲</span>
-                    </button>
-                    <span class="vote-count" id="votes-${feedback.id}">${feedback.votes}</span>
-                </div>
-                <div class="content-section">
-                    <p class="feedback-text">${escapeHtml(feedback.text)}</p>
-                    <div class="feedback-meta">
-                        <button class="reply-btn" data-id="${feedback.id}">Reply</button>
-                    </div>
-                    <div class="comments" id="comments-${feedback.id}">
-                        ${feedback.comments.map(c => renderComment(c, feedback.id)).join('')}
-                    </div>
-                    <div class="reply-form" id="reply-form-${feedback.id}" style="display: none;">
-                        <textarea placeholder="Write a reply..." rows="2"></textarea>
-                        <button class="btn btn-small submit-reply" data-id="${feedback.id}">Reply</button>
+                <div class="feedback-item${hasReplies ? ' has-replies' : ''}">
+                    ${hasReplies ? `<button class="collapse-btn" data-feedback-id="${feedback.id}" title="Thread ein-/ausklappen">−</button>` : ''}
+                    <div class="comment-avatar">A</div>
+                    <div class="comment-content">
+                        <div class="comment-meta">
+                            <span class="comment-author">Anonymous</span>
+                            <span class="comment-sep">•</span>
+                            <span class="comment-time">${relativeTime(feedback.created_at || new Date().toISOString())}</span>
+                        </div>
+                        <p class="comment-text">${escapeHtml(feedback.text)}</p>
+                        <div class="comment-actions">
+                            <button class="vote-btn ${hasVoted ? 'voted' : ''}" data-id="${feedback.id}" data-type="feedback">
+                                <span class="arrow">▲</span>
+                                <span class="vote-count" id="votes-${feedback.id}">${feedback.votes}</span>
+                            </button>
+                            <button class="reply-btn" data-id="${feedback.id}">Antworten</button>
+                        </div>
+                        <div class="comments" id="comments-${feedback.id}">
+                            ${(feedback.comments || []).map(c => renderComment(c, feedback.id)).join('')}
+                        </div>
+                        <div class="reply-form" id="reply-form-${feedback.id}" style="display: none;">
+                            <textarea placeholder="Antwort schreiben..." rows="2"></textarea>
+                            <button class="btn btn-small submit-reply" data-id="${feedback.id}">Antworten</button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -137,13 +166,21 @@
             const hasVoted = votedItems.includes(comment.id);
             return `
                 <div class="comment-item" id="comment-${comment.id}">
-                    <div class="vote-section vote-section-small">
-                        <button class="vote-btn vote-btn-small ${hasVoted ? 'voted' : ''}" data-id="${comment.id}" data-type="comment" data-feedback-id="${feedbackId}">
-                            <span class="arrow">▲</span>
-                        </button>
-                        <span class="vote-count" id="votes-${comment.id}">${comment.votes}</span>
+                    <div class="comment-avatar small">A</div>
+                    <div class="comment-content">
+                        <div class="comment-meta">
+                            <span class="comment-author">Anonymous</span>
+                            <span class="comment-sep">•</span>
+                            <span class="comment-time">${relativeTime(comment.created_at || new Date().toISOString())}</span>
+                        </div>
+                        <p class="comment-text">${escapeHtml(comment.text)}</p>
+                        <div class="comment-actions">
+                            <button class="vote-btn ${hasVoted ? 'voted' : ''}" data-id="${comment.id}" data-type="comment" data-feedback-id="${feedbackId}">
+                                <span class="arrow">▲</span>
+                                <span class="vote-count" id="votes-${comment.id}">${comment.votes}</span>
+                            </button>
+                        </div>
                     </div>
-                    <p class="comment-text">${escapeHtml(comment.text)}</p>
                 </div>
             `;
         }
@@ -152,6 +189,16 @@
         function addCommentToFeedback(feedbackId, comment) {
             const commentsEl = document.getElementById('comments-' + feedbackId);
             if (commentsEl) {
+                const feedbackItem = commentsEl.closest('.feedback-item');
+                if (feedbackItem && !feedbackItem.classList.contains('has-replies')) {
+                    feedbackItem.classList.add('has-replies');
+                    const collapseBtn = document.createElement('button');
+                    collapseBtn.className = 'collapse-btn';
+                    collapseBtn.dataset.feedbackId = feedbackId;
+                    collapseBtn.title = 'Thread ein-/ausklappen';
+                    collapseBtn.textContent = '−';
+                    feedbackItem.insertBefore(collapseBtn, feedbackItem.firstChild);
+                }
                 commentsEl.insertAdjacentHTML('beforeend', renderComment(comment, feedbackId));
             }
         }
@@ -229,6 +276,47 @@
                     user_id: userId
                 });
                 input.value = '';
+            }
+        });
+
+        // Theme toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeLabel = document.getElementById('theme-label');
+        const iconSun = document.getElementById('theme-icon-sun');
+        const iconMoon = document.getElementById('theme-icon-moon');
+        const savedTheme = localStorage.getItem('feedback_theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        if (savedTheme === 'dark') {
+            themeLabel.textContent = 'Dark';
+            iconSun.style.display = 'none';
+            iconMoon.style.display = 'block';
+        } else {
+            themeLabel.textContent = 'Light';
+            iconSun.style.display = 'block';
+            iconMoon.style.display = 'none';
+        }
+        themeToggle.addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('feedback_theme', next);
+            themeLabel.textContent = next === 'dark' ? 'Dark' : 'Light';
+            iconSun.style.display = next === 'dark' ? 'none' : 'block';
+            iconMoon.style.display = next === 'dark' ? 'block' : 'none';
+        });
+
+        // Collapse/expand threads
+        feedbackList.addEventListener('click', (e) => {
+            const collapseBtn = e.target.closest('.collapse-btn');
+            if (collapseBtn) {
+                const feedbackId = collapseBtn.dataset.feedbackId;
+                const commentsEl = document.getElementById('comments-' + feedbackId);
+                if (commentsEl) {
+                    const comments = commentsEl.querySelectorAll('.comment-item');
+                    const isCollapsed = collapseBtn.classList.contains('collapsed');
+                    comments.forEach(c => c.classList.toggle('collapsed', !isCollapsed));
+                    collapseBtn.classList.toggle('collapsed', !isCollapsed);
+                }
             }
         });
 
