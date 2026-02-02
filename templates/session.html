@@ -61,6 +61,11 @@
             <form id="poll-form">
                 <label>Question</label>
                 <input type="text" id="poll-question" placeholder="Enter your question..." required />
+                <label>Choice type</label>
+                <div class="poll-choice-type">
+                    <label class="radio-label"><input type="radio" name="poll-choice" value="single" checked /> Single choice</label>
+                    <label class="radio-label"><input type="radio" name="poll-choice" value="multiple" /> Multiple choice</label>
+                </div>
                 <label>Options</label>
                 <div id="poll-options">
                     <input type="text" class="poll-option" placeholder="Option 1" required />
@@ -89,7 +94,7 @@
 
         // Track voted items to show visual feedback
         let votedItems = JSON.parse(localStorage.getItem('voted_' + SESSION_CODE) || '[]');
-        // Track poll votes: { pollId: optionIndex }
+        // Track poll votes: single { pollId: optionIndex }, multiple { pollId: [optionIndex, ...] }
         let pollVotes = JSON.parse(localStorage.getItem('poll_votes_' + SESSION_CODE) || '{}');
 
         const socket = io();
@@ -259,20 +264,24 @@
         function renderPoll(poll) {
             const container = document.getElementById('polls-list');
             const total = Object.values(poll.votes || {}).reduce((a, b) => a + b, 0);
+            const multiple = poll.multiple_choice || false;
             const myVote = pollVotes[poll.id];
+            const isSelected = (i) => multiple
+                ? (Array.isArray(myVote) ? myVote.includes(i) : false)
+                : (myVote === i);
             const el = document.createElement('div');
             el.className = 'card poll-card';
             el.id = 'poll-' + poll.id;
+            el.dataset.multiple = multiple ? '1' : '0';
             el.innerHTML = `
-                <h3 class="poll-question">${escapeHtml(poll.question)}</h3>
+                <h3 class="poll-question">${escapeHtml(poll.question)} <span class="poll-type-badge">${multiple ? 'Multiple choice' : 'Single choice'}</span></h3>
                 <div class="poll-options">
                     ${(poll.options || []).map((opt, i) => {
                         const count = (poll.votes || {})[String(i)] || 0;
                         const pct = total > 0 ? (count / total * 100) : 0;
-                        const isSelected = myVote === i;
                         return `
                             <div class="poll-option-row">
-                                <button class="poll-option-btn ${isSelected ? 'selected' : ''}" data-poll-id="${poll.id}" data-option-index="${i}">
+                                <button class="poll-option-btn ${isSelected(i) ? 'selected' : ''}" data-poll-id="${poll.id}" data-option-index="${i}">
                                     <span class="poll-option-label">${escapeHtml(opt)}</span>
                                     <span class="poll-bar-container">
                                         <span class="poll-bar" style="width: ${pct}%"></span>
@@ -290,13 +299,18 @@
         function updatePollResults(pollId, votes) {
             const el = document.getElementById('poll-' + pollId);
             if (!el) return;
+            const multiple = el.dataset.multiple === '1';
+            const myVote = pollVotes[pollId];
+            const isSelected = (i) => multiple
+                ? (Array.isArray(myVote) ? myVote.includes(i) : false)
+                : (myVote === i);
             const total = Object.values(votes).reduce((a, b) => a + b, 0);
             el.querySelectorAll('.poll-option-btn').forEach((btn, i) => {
                 const count = votes[String(i)] || 0;
                 const pct = total > 0 ? (count / total * 100) : 0;
                 btn.querySelector('.poll-bar').style.width = pct + '%';
                 btn.querySelector('.poll-count').textContent = count;
-                btn.classList.toggle('selected', pollVotes[pollId] === i);
+                btn.classList.toggle('selected', isSelected(i));
             });
         }
 
@@ -361,28 +375,51 @@
             }
         });
 
-        // Poll voting (single choice: click to vote, click same to remove)
+        // Poll voting
         document.getElementById('polls-section').addEventListener('click', (e) => {
             const pollBtn = e.target.closest('.poll-option-btn');
             if (pollBtn) {
                 const pollId = pollBtn.dataset.pollId;
                 const optionIndex = parseInt(pollBtn.dataset.optionIndex, 10);
-                const prevVote = pollVotes[pollId];
-                const isRemoving = prevVote === optionIndex;
-                if (isRemoving) {
-                    delete pollVotes[pollId];
+                const pollCard = document.getElementById('poll-' + pollId);
+                const multiple = pollCard?.dataset.multiple === '1';
+                if (multiple) {
+                    const votes = pollVotes[pollId] || [];
+                    const arr = Array.isArray(votes) ? [...votes] : [];
+                    const idx = arr.indexOf(optionIndex);
+                    if (idx >= 0) {
+                        arr.splice(idx, 1);
+                    } else {
+                        arr.push(optionIndex);
+                    }
+                    pollVotes[pollId] = arr.length ? arr : null;
+                    if (!pollVotes[pollId]) delete pollVotes[pollId];
+                    socket.emit('poll_vote', {
+                        code: SESSION_CODE,
+                        poll_id: pollId,
+                        option_index: optionIndex,
+                        user_id: userId
+                    });
+                    pollBtn.classList.toggle('selected', arr.includes(optionIndex));
                 } else {
-                    pollVotes[pollId] = optionIndex;
+                    const prevVote = pollVotes[pollId];
+                    const isRemoving = prevVote === optionIndex;
+                    if (isRemoving) {
+                        delete pollVotes[pollId];
+                    } else {
+                        pollVotes[pollId] = optionIndex;
+                    }
+                    localStorage.setItem('poll_votes_' + SESSION_CODE, JSON.stringify(pollVotes));
+                    socket.emit('poll_vote', {
+                        code: SESSION_CODE,
+                        poll_id: pollId,
+                        option_index: optionIndex,
+                        user_id: userId
+                    });
+                    pollBtn.closest('.poll-options').querySelectorAll('.poll-option-btn').forEach(b => b.classList.remove('selected'));
+                    if (!isRemoving) pollBtn.classList.add('selected');
                 }
                 localStorage.setItem('poll_votes_' + SESSION_CODE, JSON.stringify(pollVotes));
-                socket.emit('poll_vote', {
-                    code: SESSION_CODE,
-                    poll_id: pollId,
-                    option_index: optionIndex,
-                    user_id: userId
-                });
-                pollBtn.closest('.poll-options').querySelectorAll('.poll-option-btn').forEach(b => b.classList.remove('selected'));
-                if (!isRemoving) pollBtn.classList.add('selected');
             }
         });
 
@@ -409,11 +446,13 @@
                 const options = Array.from(document.querySelectorAll('.poll-option'))
                     .map(o => o.value.trim())
                     .filter(o => o);
+                const multipleChoice = document.querySelector('input[name="poll-choice"]:checked')?.value === 'multiple';
                 if (question && options.length >= 2) {
                     socket.emit('create_poll', {
                         code: SESSION_CODE,
                         question: question,
-                        options: options
+                        options: options,
+                        multiple_choice: multipleChoice
                     });
                     document.getElementById('poll-modal').style.display = 'none';
                     document.getElementById('poll-form').reset();

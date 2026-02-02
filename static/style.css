@@ -561,6 +561,27 @@ textarea:focus {
     margin-bottom: 8px;
 }
 
+.poll-choice-type {
+    display: flex;
+    gap: 20px;
+    margin: 12px 0;
+}
+
+.poll-choice-type .radio-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.9375rem;
+}
+
+.poll-type-badge {
+    font-size: 0.75rem;
+    font-weight: normal;
+    color: var(--text-muted);
+    margin-left: 8px;
+}
+
 /* Polls */
 .polls-section {
     margin-bottom: 24px;

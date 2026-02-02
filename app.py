@@ -152,7 +152,8 @@ def export_session(code):
         md_lines.append("")
         for poll in polls:
             total = sum(poll['votes'].values())
-            md_lines.append(f"### {poll['question']}")
+            poll_type = "Multiple choice" if poll.get('multiple_choice') else "Single choice"
+            md_lines.append(f"### {poll['question']} ({poll_type})")
             for i, opt in enumerate(poll['options']):
                 count = poll['votes'].get(str(i), 0)
                 pct = (count / total * 100) if total > 0 else 0
@@ -242,6 +243,7 @@ def on_create_poll(data):
     code = data['code']
     question = data.get('question', '').strip()
     options = [o.strip() for o in data.get('options', []) if o.strip()]
+    multiple_choice = data.get('multiple_choice', False)
     
     if not question or len(options) < 2 or code not in sessions:
         return
@@ -250,8 +252,9 @@ def on_create_poll(data):
         'id': str(uuid.uuid4()),
         'question': question,
         'options': options,
+        'multiple_choice': multiple_choice,
         'votes': {str(i): 0 for i in range(len(options))},
-        'voters': {}  # user_id -> option_index (single choice)
+        'voters': {}  # single: user_id -> option_index; multiple: user_id -> [option_index, ...]
     }
     
     if 'polls' not in sessions[code]:
@@ -262,7 +265,7 @@ def on_create_poll(data):
 
 @socketio.on('poll_vote')
 def on_poll_vote(data):
-    """User votes on a poll option (single choice)."""
+    """User votes on a poll option (single or multiple choice)."""
     code = data['code']
     poll_id = data['poll_id']
     option_index = data.get('option_index', 0)
@@ -273,13 +276,27 @@ def on_poll_vote(data):
     
     for poll in sessions[code].get('polls', []):
         if poll['id'] == poll_id:
-            prev_vote = poll['voters'].get(user_id)
-            if prev_vote is not None:
-                poll['votes'][str(prev_vote)] -= 1
-                del poll['voters'][user_id]
-            if prev_vote != option_index:
-                poll['votes'][str(option_index)] = poll['votes'].get(str(option_index), 0) + 1
-                poll['voters'][user_id] = option_index
+            multiple = poll.get('multiple_choice', False)
+            if multiple:
+                votes_list = poll['voters'].get(user_id, [])
+                if option_index in votes_list:
+                    votes_list.remove(option_index)
+                    poll['votes'][str(option_index)] -= 1
+                else:
+                    votes_list.append(option_index)
+                    poll['votes'][str(option_index)] = poll['votes'].get(str(option_index), 0) + 1
+                if votes_list:
+                    poll['voters'][user_id] = votes_list
+                else:
+                    poll['voters'].pop(user_id, None)
+            else:
+                prev_vote = poll['voters'].get(user_id)
+                if prev_vote is not None:
+                    poll['votes'][str(prev_vote)] -= 1
+                    del poll['voters'][user_id]
+                if prev_vote != option_index:
+                    poll['votes'][str(option_index)] = poll['votes'].get(str(option_index), 0) + 1
+                    poll['voters'][user_id] = option_index
             emit('poll_updated', {
                 'poll_id': poll_id,
                 'votes': dict(poll['votes'])
