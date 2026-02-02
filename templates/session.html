@@ -219,21 +219,28 @@
         // Event delegation for votes and replies
         feedbackList.addEventListener('click', (e) => {
             const voteBtn = e.target.closest('.vote-btn');
-            if (voteBtn && !voteBtn.classList.contains('voted')) {
+            if (voteBtn) {
                 const itemId = voteBtn.dataset.id;
                 const isComment = voteBtn.dataset.type === 'comment';
                 const feedbackId = voteBtn.dataset.feedbackId;
+                const alreadyVoted = votedItems.includes(itemId);
 
                 socket.emit('vote', {
                     code: SESSION_CODE,
                     item_id: itemId,
                     user_id: userId,
                     is_comment: isComment,
-                    feedback_id: feedbackId
+                    feedback_id: feedbackId,
+                    remove: alreadyVoted
                 });
 
-                voteBtn.classList.add('voted');
-                votedItems.push(itemId);
+                if (alreadyVoted) {
+                    voteBtn.classList.remove('voted');
+                    votedItems = votedItems.filter(id => id !== itemId);
+                } else {
+                    voteBtn.classList.add('voted');
+                    votedItems.push(itemId);
+                }
                 localStorage.setItem('voted_' + SESSION_CODE, JSON.stringify(votedItems));
             }
 

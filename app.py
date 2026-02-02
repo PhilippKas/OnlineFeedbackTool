@@ -220,12 +220,13 @@ def on_new_comment(data):
 
 @socketio.on('vote')
 def on_vote(data):
-    """Upvote a feedback or comment."""
+    """Upvote or remove vote from a feedback or comment."""
     code = data['code']
     item_id = data['item_id']
     user_id = data.get('user_id', 'anonymous')
     is_comment = data.get('is_comment', False)
     feedback_id = data.get('feedback_id')  # Only for comments
+    remove = data.get('remove', False)
     
     if code not in sessions:
         return
@@ -234,7 +235,16 @@ def on_vote(data):
         if is_comment and fb['id'] == feedback_id:
             for comment in fb['comments']:
                 if comment['id'] == item_id:
-                    if user_id not in comment['voters']:
+                    if remove and user_id in comment['voters']:
+                        comment['voters'].remove(user_id)
+                        comment['votes'] -= 1
+                        emit('vote_updated', {
+                            'item_id': item_id,
+                            'votes': comment['votes'],
+                            'is_comment': True,
+                            'feedback_id': feedback_id
+                        }, room=code)
+                    elif not remove and user_id not in comment['voters']:
                         comment['voters'].append(user_id)
                         comment['votes'] += 1
                         emit('vote_updated', {
@@ -246,7 +256,15 @@ def on_vote(data):
                     break
             break
         elif not is_comment and fb['id'] == item_id:
-            if user_id not in fb['voters']:
+            if remove and user_id in fb['voters']:
+                fb['voters'].remove(user_id)
+                fb['votes'] -= 1
+                emit('vote_updated', {
+                    'item_id': item_id,
+                    'votes': fb['votes'],
+                    'is_comment': False
+                }, room=code)
+            elif not remove and user_id not in fb['voters']:
                 fb['voters'].append(user_id)
                 fb['votes'] += 1
                 emit('vote_updated', {

@@ -458,11 +458,10 @@ textarea:focus {
     content: '+';
 }
 
-/* Nested comments */
+/* Nested comments (no line - can't reply to replies) */
 .comments {
     margin-left: 44px;
     padding-left: 16px;
-    border-left: 2px solid var(--border-color);
 }
 
 .comment-item {
