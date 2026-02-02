@@ -11,6 +11,7 @@ import qrcode
 BASE_URL = "https://philippsseite.de"
 
 app = Flask(__name__)
+# Not safe but acceptible for this use case
 app.config['SECRET_KEY'] = 'workshop-feedback-secret'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
@@ -124,7 +125,6 @@ def export_session(code):
     md_lines = [
         f"# Workshop Feedback Session",
         f"",
-        f"**Session Code:** {code}",
         f"**Created:** {session['created_at']}",
         f"**Exported:** {datetime.now().isoformat()}",
         f"",
@@ -136,7 +136,7 @@ def export_session(code):
     
     for i, fb in enumerate(sorted_feedbacks, 1):
         md_lines.append(f"### {i}. {fb['text']}")
-        md_lines.append(f"**Votes:** {fb['votes']}")
+        md_lines.append(f"↑{fb['votes']}")
         md_lines.append(f"")
         
         if fb['comments']:
